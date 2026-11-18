@@ -27,5 +27,20 @@ const fb = ex({ increment: 5 }, [185, 8], [195, 6]);
 assert.strictEqual(show(nextTargets(fb, [S([185, 8], [195, 4])])), '190x8^ 195x6');
 assert.strictEqual(show(nextTargets(fb, [S([0, ''], [195, 3]), S([0, ''], [195, 2])])), '185x8 190x6v');
 
+// first time on a lift: target weight blank -> adopt what was used
+const ohp = ex({ increment: 5, repMin: 6, repMax: 10 }, [0, 6], [0, 6], [0, 6]);
+assert.strictEqual(show(nextTargets(ohp, [S([95, 8], [95, 7], [95, 6])])), '95x9 95x8 95x7');
+assert.strictEqual(nextTargets(ohp, [S([95, 8], [95, 7], [95, 6])])[0].change, 'found');
+// timed hold (no weight): +5s per session, capped at top of range
+const hold = ex({ kind: 'hold', increment: 0, repMin: 30, repMax: 45, repStep: 5 }, ['', 30], ['', 30]);
+assert.strictEqual(show(nextTargets(hold, [S(['', 35], ['', 45])])), '0x40 0x45');
+assert.strictEqual(nextTargets(hold, [S(['', 35], ['', 45])])[0].change, 'reps');
+// bodyweight / vest work at top of range with no increment -> stay at top
+const vest = ex({ increment: 0, repMin: 5, repMax: 8 }, [40, 8], [40, 8]);
+assert.strictEqual(show(nextTargets(vest, [S([40, 8], [40, 8])])), '40x8 40x8');
+// cardio never auto-progresses
+const walk = ex({ kind: 'cardio' }, [2, '']);
+assert.strictEqual(nextTargets(walk, [S([2.1, 41])])[0].weight, 2);
+
 assert.strictEqual(e1rm(185, 8), 234);
 console.log('all tests passed');

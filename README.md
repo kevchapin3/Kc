@@ -15,8 +15,21 @@ A phone-friendly web app (installable PWA, works offline) for logging lifts. It 
 
 CSV (for Sheets/Excel) and full JSON backup exports are also available. All data stays on your phone (`localStorage`). Export a JSON backup now and then.
 
+## Exercise types
+- **Weighted** (default): weight × reps. With `addedLoad`, the weight is vest/belt load, shown as `+40×6`.
+- **Bodyweight**: reps only.
+- **Timed hold**: seconds. Progresses +5s per session up to the top of the range.
+- **Cardio**: miles and minutes. Logged, never auto-progressed.
+- **Weight 0 = first time**: use set 1 to find your weight, and the app keeps it as the target.
+
 ## Starting data
-The app ships with the Arms (Tue) day from the project: Tuesday 11/17's session is in history and next Tuesday's targets are in the plan. Import the rest of the program from the project with Sync → Import.
+These days come from the "working out" project:
+- **Arms (Tue):** Tuesday 11/17's session is in history, and next Tuesday's targets are in the plan.
+- **Thu AM · home:** vest supersets and core.
+- **Thu lunch · office gym:** first time on these lifts, so find your weights.
+- **Dog walk:** 2 mi.
+
+Days added in later app updates merge into the data already saved on your phone. Logged sessions are kept, and days you deleted stay deleted. Import the rest of the program with Sync → Import.
 
 ## Run / install
 Serve the `app/` folder over HTTPS (e.g. GitHub Pages with source = `/app`, or Netlify/Vercel). Then open it on your phone and choose "Add to Home Screen".

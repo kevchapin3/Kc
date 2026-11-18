@@ -5,6 +5,9 @@
 //  - every set reached repMax at the target weight -> add `increment`, reset reps to repMin
 //  - most sets fell below repMin in the last two sessions -> drop `increment`
 //  - otherwise keep the weight and aim for one more rep per set (capped at repMax)
+//    (`repStep` sets the step, e.g. 5 for timed holds measured in seconds)
+//  - a set with no target weight yet takes the weight actually used ("find your weight")
+// kind 'cardio' (distance/time) never auto-progresses.
 //
 // Exercises WITHOUT a rep range keep fixed per-set targets:
 //  - hit target reps at target weight -> next weight = target + increment
@@ -21,8 +24,14 @@
     const inc = Number(exercise.increment) || 0;
     const max = Number(exercise.repMax);
     const min = Number(exercise.repMin) || max;
-    const tgts = exercise.sets.map(t => ({ weight: Number(t.weight) || 0, reps: Number(t.reps) || min }));
+    const step = Number(exercise.repStep) || 1;
+    let tgts = exercise.sets.map(t => ({ weight: Number(t.weight) || 0, reps: Number(t.reps) || min }));
     if (!last || !last.sets.some(logged)) return tgts.map(t => Object.assign({ change: 'none' }, t));
+    // No target weight yet (first time on a lift): adopt the weight actually used.
+    const used = last.sets.filter(logged).map(a => Number(a.weight) || 0);
+    const working = used.length ? Math.max.apply(null, used) : 0;
+    const noLoad = exercise.kind === 'hold' || exercise.kind === 'bodyweight';
+    tgts = tgts.map((t, i) => t.weight > 0 || noLoad ? t : { weight: Number((last.sets[i] || {}).weight) || working, reps: t.reps, found: true });
 
     const allTop = tgts.every((t, i) => {
       const a = last.sets[i];
@@ -41,9 +50,9 @@
 
     return tgts.map((t, i) => {
       const a = last.sets[i];
-      if (!logged(a)) return Object.assign({ change: 'hold' }, t);
-      const reps = Math.min(max, Math.max(min, Number(a.reps) + 1));
-      return { weight: t.weight, reps, change: reps > t.reps ? 'reps' : 'hold' };
+      if (!logged(a)) return { weight: t.weight, reps: t.reps, change: t.found ? 'found' : 'hold' };
+      const reps = Math.min(max, Math.max(min, Number(a.reps) + step));
+      return { weight: t.weight, reps, change: t.found ? 'found' : reps > t.reps ? 'reps' : 'hold' };
     });
   }
 
@@ -68,6 +77,9 @@
 
   function nextTargets(exercise, history, opts) {
     opts = Object.assign({ missTolerance: 2 }, opts || {});
+    if (exercise.kind === 'cardio') {
+      return exercise.sets.map(t => ({ weight: t.weight, reps: t.reps, change: 'none' }));
+    }
     const last = history[history.length - 1];
     const prev = history[history.length - 2];
     return Number(exercise.repMax) > 0
