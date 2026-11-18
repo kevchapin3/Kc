@@ -1,23 +1,35 @@
 /* Lift Log: log sets, auto-progress targets, export for your workout project. */
-const KEY = 'liftlog.v1';
+const KEY = 'liftlog.v2';
 const uid = () => Math.random().toString(36).slice(2, 9);
 const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
+const range = ex => ex.repMax ? `${ex.repMin || ex.repMax}–${ex.repMax} reps · +${ex.increment} ${S.unit} at top` : `+${ex.increment} ${S.unit} when hit`;
 
 const sets = (pairs) => pairs.map(([weight, reps]) => ({ weight, reps }));
+const done = (pairs) => pairs.map(([weight, reps]) => ({ weight, reps }));
+// Starting plan: Arms day from the "working out" project, with targets for next Tuesday.
+const ARMS = [
+  { id: 'cgbench', name: 'Close-grip bench', increment: 10, repMin: 8, repMax: 10, sets: sets([[185, 9], [185, 8], [185, 8]]),
+    last: done([[185, 8], [185, 7], [185, 7]]) },
+  { id: 'ezcurl', name: 'EZ curl', increment: 5, repMin: 8, repMax: 12, sets: sets([[65, 12], [65, 11], [65, 10], [65, 9]]),
+    last: done([[65, 11], [65, 10], [65, 8], [65, 8]]) },
+  { id: 'incdbcurl', name: 'Incline DB curl', increment: 5, repMin: 10, repMax: 12, sets: sets([[20, 12], [20, 11], [20, 10]]),
+    last: done([[20, 10], [20, 10], [20, 10]]) },
+  { id: 'ohrope', name: 'Overhead rope extension', increment: 5, repMin: 10, repMax: 15, sets: sets([[40, 10], [40, 10], [40, 10]]),
+    last: done([[30, 15], [30, 15], [30, 15]]) },
+  { id: 'ropehammer', name: 'Rope hammer curl', increment: 5, repMin: 12, repMax: 15, sets: sets([[40, 15], [40, 12]]),
+    last: done([[40, 13], [40, 9]]) },
+  { id: 'ropepush', name: 'Rope pushdown', increment: 5, repMin: 10, repMax: 15, sets: sets([[50, 10], [50, 10]]),
+    last: done([[40, 15], [40, 15]]) },
+];
 const SEED = {
-  version: 1, unit: 'lb',
-  plan: { days: [
-    { id: uid(), name: 'Chest', exercises: [
-      { id: uid(), name: 'Flat Bench', increment: 5, sets: sets([[115, 30], [145, 12], [165, 10], [185, 8], [195, 6]]) },
-      { id: uid(), name: 'Incline DB Bench', increment: 5, sets: sets([[30, 30], [55, 12], [65, 10], [75, 8], [80, 6]]) },
-    ] },
-    { id: uid(), name: 'Legs', exercises: [
-      { id: uid(), name: 'Back Squat', increment: 10, sets: sets([[135, 12], [185, 10], [225, 8]]) },
-    ] },
-  ] },
-  sessions: [], draft: null,
+  version: 2, unit: 'lb',
+  plan: { days: [{ id: 'arms', name: 'Arms (Tue)', exercises: ARMS.map(({ last, ...e }) => e) }] },
+  sessions: [{ id: 'seed-arms-1', date: '2026-11-17', dayId: 'arms', dayName: 'Arms (Tue)',
+    notes: 'Triceps ahead of plan, biceps on track (from "working out" project).',
+    exercises: ARMS.map(e => ({ exId: e.id, name: e.name, targets: e.last.map(x => ({ ...x })), sets: e.last })) }],
+  draft: null,
 };
 
 let S = load();
@@ -43,7 +55,7 @@ function render() {
 function startDraft(dayId) {
   const day = S.plan.days.find(d => d.id === dayId);
   S.draft = { id: uid(), date: today(), dayId, dayName: day.name, notes: '',
-    exercises: day.exercises.map(ex => ({ exId: ex.id, name: ex.name,
+    exercises: day.exercises.map(ex => ({ exId: ex.id, name: ex.name, range: range(ex),
       targets: ex.sets.map(s => ({ ...s })), sets: ex.sets.map(() => ({ weight: '', reps: '' })) })) };
   save(); render();
 }
@@ -61,7 +73,7 @@ function renderLog() {
   const d = S.draft;
   v.innerHTML = `<div class="card row"><div><h2 style="margin:0">${esc(d.dayName)}</h2></div>
       <input type="date" id="ddate" value="${d.date}" style="max-width:160px"></div>
-    ${d.exercises.map((ex, ei) => `<div class="card"><h2>${esc(ex.name)}</h2>
+    ${d.exercises.map((ex, ei) => `<div class="card"><h2>${esc(ex.name)}</h2>${ex.range ? `<p class="mute" style="margin:-6px 0 6px">${esc(ex.range)}</p>` : ''}
       <table><tr><th>Set</th><th>Target</th><th>${S.unit}</th><th>Reps</th><th></th></tr>
       ${ex.sets.map((s, si) => `<tr class="${s.reps !== '' ? 'done' : ''}"><td>${si + 1}</td>
         <td class="tgt">${ex.targets[si].weight} × ${ex.targets[si].reps}</td>
@@ -87,7 +99,8 @@ function renderLog() {
 }
 
 function exHistory(exId) {
-  return S.sessions.flatMap(s => s.exercises.filter(e => e.exId === exId)
+  // Sessions where this exercise was skipped entirely don't count toward progression.
+  return S.sessions.flatMap(s => s.exercises.filter(e => e.exId === exId && e.sets.some(x => x.reps !== ''))
     .map(e => ({ ...e, sets: e.sets.map((x, i) => x.reps === '' ? {} : x) })));
 }
 
@@ -112,9 +125,9 @@ function finish() {
 }
 
 function resultCard(r) {
-  return `<div class="card"><h2>Next ${esc(r.day)} targets</h2><p class="mute">Updated from your ${esc(r.date)} session</p>
+  return `<div class="card"><h2>Next ${esc(r.day)} targets</h2><p class="mute">Updated from your ${esc(r.date)} session. ↑ heavier · + more reps · ↓ deload</p>
     ${r.changes.map(c => `<div><b>${esc(c.name)}</b><div class="mute">${c.sets.map((s, i) =>
-      `<span class="${s.to.change === 'up' ? 'up' : s.to.change === 'down' ? 'down' : ''}">S${i + 1} ${s.to.weight}×${s.to.reps}${s.to.change === 'up' ? '↑' : s.to.change === 'down' ? '↓' : ''}</span>`).join(' · ')}</div></div>`).join('')}</div>`;
+      `<span class="${s.to.change === 'up' ? 'up' : s.to.change === 'down' ? 'down' : ''}">S${i + 1} ${s.to.weight}×${s.to.reps}${({ up: '↑', down: '↓', reps: '+' })[s.to.change] || ''}</span>`).join(' · ')}</div></div>`).join('')}</div>`;
 }
 
 /* ---------- Plan ---------- */
@@ -125,7 +138,12 @@ function renderPlan() {
     <div class="row"><input value="${esc(d.name)}" data-dayname="${di}"><button class="btn ghost small" data-delday="${di}" style="flex:0">Delete day</button></div>
     ${d.exercises.map((ex, ei) => `<div style="border-top:1px solid var(--line);margin-top:10px;padding-top:8px">
       <div class="row"><input value="${esc(ex.name)}" data-p="${di}.${ei}.name">
-        <label class="mute" style="flex:0;white-space:nowrap">+inc</label><input style="max-width:70px" inputmode="decimal" value="${ex.increment}" data-p="${di}.${ei}.increment"></div>
+        </div>
+      <div class="row" style="margin-top:6px"><label class="mute">Rep range</label>
+        <input inputmode="numeric" placeholder="min" value="${ex.repMin ?? ''}" data-p="${di}.${ei}.repMin">
+        <input inputmode="numeric" placeholder="max" value="${ex.repMax ?? ''}" data-p="${di}.${ei}.repMax">
+        <label class="mute">+${S.unit}</label><input inputmode="decimal" value="${ex.increment}" data-p="${di}.${ei}.increment"></div>
+      <p class="mute" style="margin:4px 0">${ex.repMax ? 'Double progression: add reps until every set hits the max, then add weight.' : 'No range: add weight whenever a set hits its target.'}</p>
       <table><tr><th>Set</th><th>Target ${S.unit}</th><th>Target reps</th><th></th></tr>
       ${ex.sets.map((s, si) => `<tr><td>${si + 1}</td><td><input inputmode="decimal" value="${s.weight}" data-s="${di}.${ei}.${si}.weight"></td>
         <td><input inputmode="numeric" value="${s.reps}" data-s="${di}.${ei}.${si}.reps"></td>
@@ -143,7 +161,7 @@ function renderPlan() {
   act('data-addset', (di, ei) => { const s = S.plan.days[di].exercises[ei].sets; s.push({ ...(s[s.length - 1] || { weight: 0, reps: 10 }) }); });
   act('data-delset', (di, ei, si) => S.plan.days[di].exercises[ei].sets.splice(si, 1));
   act('data-delex', (di, ei) => confirm('Remove exercise?') && S.plan.days[di].exercises.splice(ei, 1));
-  act('data-addex', di => S.plan.days[di].exercises.push({ id: uid(), name: 'New exercise', increment: 5, sets: [{ weight: 0, reps: 10 }] }));
+  act('data-addex', di => S.plan.days[di].exercises.push({ id: uid(), name: 'New exercise', increment: 5, repMin: 8, repMax: 12, sets: [{ weight: 0, reps: 8 }] }));
   act('data-delday', di => confirm('Delete this day?') && S.plan.days.splice(di, 1));
   $('#addday').onclick = () => { S.plan.days.push({ id: uid(), name: 'New day', exercises: [] }); save(); render(); };
 }
@@ -175,7 +193,7 @@ function toCSV() {
 function toMarkdown() {
   const recent = S.sessions.slice(-12);
   return `# Workout log export (${today()})\n\nUnits: ${S.unit}. Format per set: weight×reps (target in brackets).\n\n## Current plan / next targets\n` +
-    S.plan.days.map(d => `\n### ${d.name}\n` + d.exercises.map(e => `- ${e.name} (+${e.increment}): ${e.sets.map(s => `${s.weight}×${s.reps}`).join(', ')}`).join('\n')).join('\n') +
+    S.plan.days.map(d => `\n### ${d.name}\n` + d.exercises.map(e => `- ${e.name} (${e.repMax ? `${e.repMin}–${e.repMax} reps, ` : ''}+${e.increment}): ${e.sets.map(s => `${s.weight}×${s.reps}`).join(', ')}`).join('\n')).join('\n') +
     `\n\n## Recent sessions\n` + recent.map(s => `\n### ${s.date} — ${s.dayName}\n` + s.exercises.map(e =>
       `- ${e.name}: ${e.sets.map((x, i) => x.reps === '' ? `skip [${e.targets[i].weight}×${e.targets[i].reps}]` : `${x.weight}×${x.reps} [${e.targets[i].weight}×${e.targets[i].reps}]`).join(', ')}`).join('\n') +
       (s.notes ? `\n- Notes: ${s.notes}` : '')).join('\n') + PROJECT_ASK;
@@ -185,11 +203,11 @@ const PROJECT_ASK = `
 
 ## Request for the "working out" project
 Review these sessions against my goals. Adjust exercises, sets, rep targets or weights where needed
-(the app already adds the listed increment to any set where I hit the target, and deloads after two big misses).
+(the app uses double progression: same weight, +1 rep per set until every set reaches the top of the range, then +increment and back to the bottom of the range; it deloads after two weak sessions).
 Reply with the updated plan as a single JSON code block in exactly this shape so I can import it into my app:
 
 \`\`\`json
-{"unit":"lb","days":[{"name":"Chest","exercises":[{"name":"Flat Bench","increment":5,"sets":[{"weight":185,"reps":8}]}]}]}
+{"unit":"lb","days":[{"name":"Arms (Tue)","exercises":[{"name":"Close-grip bench","increment":10,"repMin":8,"repMax":10,"sets":[{"weight":185,"reps":9},{"weight":185,"reps":8}]}]}]}
 \`\`\`
 `;
 
@@ -206,13 +224,16 @@ async function shareOrDownload(name, text, type) {
   download(name, text, type);
 }
 
+// Reuse existing exercise ids by name so history keeps linking after an import.
+const matchId = name => S.plan.days.flatMap(d => d.exercises).find(e => e.name.toLowerCase() === String(name).toLowerCase())?.id || uid();
 function importJSON(text) {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
   const raw = fenced ? fenced[1] : text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1);
   const obj = JSON.parse(raw);
   const days = obj.plan?.days || obj.days;
   if (!Array.isArray(days)) throw new Error('Expected {"plan":{"days":[...]}} or {"days":[...]}');
-  days.forEach(d => { d.id ||= uid(); d.exercises = (d.exercises || []).map(e => ({ id: e.id || uid(), name: e.name, increment: Number(e.increment ?? 5),
+  days.forEach(d => { d.id ||= uid(); d.exercises = (d.exercises || []).map(e => ({ id: e.id || matchId(e.name), name: e.name, increment: Number(e.increment ?? 5),
+    ...(e.repMax ? { repMin: Number(e.repMin ?? e.repMax), repMax: Number(e.repMax) } : {}),
     sets: (e.sets || []).map(s => ({ weight: Number(s.weight ?? s.targetWeight ?? 0), reps: Number(s.reps ?? s.targetReps ?? 0) })) })); });
   if (obj.sessions) { S = { ...structuredClone(SEED), ...obj, plan: { days } }; }
   else { S.plan.days = days; if (obj.unit) S.unit = obj.unit; }
@@ -228,7 +249,7 @@ function renderData() {
     <button class="btn ghost" id="csv">Export CSV (all sets)</button>
     <button class="btn ghost" id="json">Export JSON backup</button></div>
   <div class="card"><h2>Import plan from Claude</h2>
-    <p class="mute">Paste Claude's whole reply (the JSON block is found automatically), or JSON like <code>{"days":[{"name":"Chest","exercises":[{"name":"Flat Bench","increment":5,"sets":[{"weight":185,"reps":8}]}]}]}</code>, or a full JSON backup.</p>
+    <p class="mute">Paste Claude's whole reply (the JSON block is found automatically), or JSON like <code>{"days":[{"name":"Arms (Tue)","exercises":[{"name":"EZ curl","increment":5,"repMin":8,"repMax":12,"sets":[{"weight":65,"reps":12}]}]}]}</code>, or a full JSON backup.</p>
     <textarea id="imp" rows="5"></textarea>
     <input type="file" id="file" accept=".json,application/json" style="margin-top:8px">
     <button class="btn" id="doimp">Import</button><p id="msg" class="mute"></p></div>`;
