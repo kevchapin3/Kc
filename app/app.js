@@ -274,7 +274,10 @@ function toCSV() {
 }
 
 function toMarkdown(all = false) {
-  const recent = all ? S.sessions.slice().sort((a, b) => a.date.localeCompare(b.date)) : S.sessions.slice(-12);
+  // Weekly check-in: everything from the last 8 days (at least the last 12 sessions).
+  const sorted = S.sessions.slice().sort((a, b) => a.date.localeCompare(b.date));
+  const since = new Date(Date.now() - 8 * 864e5).toISOString().slice(0, 10);
+  const recent = all ? sorted : sorted.filter((x, i) => x.date >= since || i >= sorted.length - 12);
   return `# Workout log export (${today()})\n\nUnits: ${S.unit}. Per set: weight×reps (target in brackets). +40×6 = 6 reps with 40 ${S.unit} added (vest). ×8 = bodyweight reps. 30s = timed hold. ? = weight not found yet.\n\n## Current plan / next targets\n` +
     S.plan.days.map(d => `\n### ${d.name}\n` + d.exercises.map(e => `- ${e.name} (${range(e)}${e.note ? `; ${e.note}` : ''}): ${e.sets.map(s => fmt(e, s)).join(', ')}`).join('\n')).join('\n') +
     `\n\n## Recent sessions\n` + recent.map(s => `\n### ${s.date} — ${s.dayName}\n` + s.exercises.map(e =>
@@ -356,8 +359,8 @@ function toast(text) {
 
 function renderData() {
   const v = $('#view'); const stamp = today();
-  v.innerHTML = `<div class="card"><h2>Send to “working out” project</h2>
-    <p class="mute">Share the summary into your Claude project. It ends with a request for Claude to reply with an updated plan in JSON — paste that reply below to update your targets.</p>
+  v.innerHTML = `<div class="card"><h2>Friday check-in: send to coach</h2>
+    <p class="mute">Shares this week’s sessions and your current targets with your “working out” project. It ends with a request for Claude to reply with an updated plan in JSON — paste that reply below to update your targets.</p>
     <button class="btn" id="md">Share Markdown summary</button>
     <button class="btn ghost" id="copy">Copy summary to clipboard</button>
     <button class="btn ghost" id="csv">Export CSV (all sets)</button>
@@ -370,7 +373,7 @@ function renderData() {
     <button class="btn" id="ghsync">Save & sync now</button>
     ${gh().token ? '<button class="btn ghost" id="ghforget">Remove token</button>' : ''}
     <p id="ghmsg" class="mute">${gh().error ? 'Last sync failed: ' + esc(gh().error) : gh().last ? 'Last synced ' + esc(gh().last) : 'Not set up yet.'}</p></div>
-  <div class="card"><h2>Import plan from Claude</h2>
+  <div class="card"><h2>Sunday: load next week’s plan</h2>
     <p class="mute">Paste Claude's whole reply (the JSON block is found automatically), or JSON like <code>{"days":[{"name":"Arms (Tue)","exercises":[{"name":"EZ curl","increment":5,"repMin":8,"repMax":12,"sets":[{"weight":65,"reps":12}]}]}]}</code>, or a full JSON backup.</p>
     <textarea id="imp" rows="5"></textarea>
     <input type="file" id="file" accept=".json,application/json" style="margin-top:8px">
