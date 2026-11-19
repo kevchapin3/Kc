@@ -17,80 +17,81 @@ function range(ex) {
 }
 // Format one set (target or actual) for the exercise's kind.
 function fmt(ex, x) {
-  const k = kindOf(ex), w = x.weight, r = x.reps;
-  if (k === 'cardio') return `${w === '' || w == null ? '?' : w} mi${r !== '' && r != null ? ` / ${r} min` : ''}`;
-  if (k === 'hold') return `${r}s`;
+  const k = kindOf(ex), w = x.weight, r = x.reps, load = Number(w) ? `${ex.addedLoad ? '+' : ''}${w} · ` : '';
+  if (k === 'cardio') return [Number(w) ? `${w} mi` : '', r !== '' && r != null && Number(r) ? `${r} min` : ''].filter(Boolean).join(' / ') || '—';
+  if (k === 'hold') return `${load}${r}s`;
   if (k === 'bodyweight') return `×${r}`;
   const wt = !Number(w) ? '?' : (ex.addedLoad ? '+' : '') + w;
   return `${wt}×${r}`;
 }
 
-const sets = (pairs) => pairs.map(([weight, reps]) => ({ weight, reps }));
-const done = (pairs) => pairs.map(([weight, reps]) => ({ weight, reps }));
-// Starting plan: Arms day from the "working out" project, with targets for next Tuesday.
-const ARMS = [
-  { id: 'cgbench', name: 'Close-grip bench', increment: 10, repMin: 8, repMax: 10, sets: sets([[185, 9], [185, 8], [185, 8]]),
-    last: done([[185, 8], [185, 7], [185, 7]]) },
-  { id: 'ezcurl', name: 'EZ curl', increment: 5, repMin: 8, repMax: 12, sets: sets([[65, 12], [65, 11], [65, 10], [65, 9]]),
-    last: done([[65, 11], [65, 10], [65, 8], [65, 8]]) },
-  { id: 'incdbcurl', name: 'Incline DB curl', increment: 5, repMin: 10, repMax: 12, sets: sets([[20, 12], [20, 11], [20, 10]]),
-    last: done([[20, 10], [20, 10], [20, 10]]) },
-  { id: 'ohrope', name: 'Overhead rope extension', increment: 5, repMin: 10, repMax: 15, sets: sets([[40, 10], [40, 10], [40, 10]]),
-    last: done([[30, 15], [30, 15], [30, 15]]) },
-  { id: 'ropehammer', name: 'Rope hammer curl', increment: 5, repMin: 12, repMax: 15, sets: sets([[40, 15], [40, 12]]),
-    last: done([[40, 13], [40, 9]]) },
-  { id: 'ropepush', name: 'Rope pushdown', increment: 5, repMin: 10, repMax: 15, sets: sets([[50, 10], [50, 10]]),
-    last: done([[40, 15], [40, 15]]) },
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+// Weekdays a plan day belongs to, from its name ("Thu AM", "Bike (Wed/Sat)"). None = any day.
+const daysOf = d => ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'].flatMap((w, i) => new RegExp(`\\b${w}`, 'i').test(d.name) ? [i] : []);
+const slug = t => String(t).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const num0 = (v, d) => v === '' ? '' : Number(v ?? d);
+// Clean one plan exercise (from plan.js or a pasted import). idFor(name) keeps history linked.
+function normalizeExercise(e, idFor) {
+  return { id: e.id || idFor(e.name), name: String(e.name), increment: Number(e.increment ?? 5),
+    ...(e.repMax ? { repMin: Number(e.repMin ?? e.repMax), repMax: Number(e.repMax) } : {}),
+    ...(KINDS[e.kind] && e.kind !== 'lift' ? { kind: e.kind } : {}),
+    ...(e.kind === 'hold' ? { repStep: Number(e.repStep ?? 5) } : {}),
+    ...(e.addedLoad ? { addedLoad: true } : {}), ...(e.note ? { note: String(e.note) } : {}),
+    sets: (e.sets || []).map(st => ({ weight: num0(st.weight ?? st.targetWeight, 0), reps: num0(st.reps ?? st.targetReps, 0) })) };
+}
+// Map exercise name -> existing id (plan first, then logged history).
+function knownIds(state) {
+  const m = new Map();
+  state.plan.days.forEach(d => d.exercises.forEach(e => m.set(e.name.toLowerCase(), e.id)));
+  state.sessions.forEach(s => s.exercises.forEach(e => { if (!m.has(e.name.toLowerCase())) m.set(e.name.toLowerCase(), e.exId); }));
+  return name => m.get(String(name).toLowerCase()) || slug(name);
+}
+// Replace the plan with a new set of days. Days are matched by name and exercises by name,
+// so history stays linked. Days you created yourself (not from the project) are kept.
+function replacePlan(state, days, { keepCustom = true } = {}) {
+  const idFor = knownIds(state);
+  const out = days.map(d => {
+    const old = state.plan.days.find(x => x.name === d.name);
+    return { id: old ? old.id : (d.id || slug(d.name)), name: String(d.name), exercises: (d.exercises || []).map(e => normalizeExercise(e, idFor)) };
+  });
+  const names = new Set(out.map(d => d.name)), fromProject = new Set(state.seeded || []);
+  const custom = keepCustom ? state.plan.days.filter(d => !names.has(d.name) && !fromProject.has(d.id)) : [];
+  state.plan.days = [...out, ...custom];
+  state.seeded = [...new Set([...(state.seeded || []), ...out.map(d => d.id)])];
+}
+// Apply the plan shipped in plan.js once per version.
+function applyProjectPlan(state) {
+  const P = window.PROJECT_PLAN;
+  if (!P || state.planVersion === P.version) return;
+  replacePlan(state, structuredClone(P.days));
+  if (P.unit) state.unit = P.unit;
+  state.planVersion = P.version;
+  state.planNotice = `Plan updated from the “working out” project (${P.version}). Your logged sessions are unchanged.`;
+}
+
+// History shipped with the app: Tuesday 11/17 arm day.
+const ARMS_1117 = [
+  ['Close-grip bench', [[185, 8], [185, 7], [185, 7]]], ['EZ curl', [[65, 11], [65, 10], [65, 8], [65, 8]]],
+  ['Incline DB curl', [[20, 10], [20, 10], [20, 10]]], ['Overhead rope extension', [[30, 15], [30, 15], [30, 15]]],
+  ['Rope hammer curl', [[40, 13], [40, 9]]], ['Rope pushdown', [[40, 15], [40, 15]]],
 ];
-// Thursday from the "working out" project. Weight 0 = first time: find it on set 1, then keep it.
-const ex = (id, name, o, n, reps, weight = 0) => Object.assign({ id, name, increment: 5, sets: Array.from({ length: n }, () => ({ weight, reps })) }, o);
-const THU_AM = [
-  ex('wchin', 'Weighted chin-up (palms toward you)', { repMin: 5, repMax: 8, increment: 0, addedLoad: true,
-    note: 'Superset A1 · +40 vest · 90s rest after each pair' }, 4, 5, 40),
-  ex('wpushup', 'Feet-elevated weighted handle push-up', { repMin: 8, repMax: 12, increment: 0, addedLoad: true,
-    note: 'Superset A2 · +40 vest' }, 4, 8, 40),
-  ex('obliqueknee', 'Hanging oblique knee raise', { kind: 'bodyweight', repMin: 8, repMax: 10, increment: 0,
-    note: 'Superset B1 · reps per side · 60s rest' }, 3, 8, ''),
-  ex('hollow', 'Hollow body hold', { kind: 'hold', repMin: 30, repMax: 45, repStep: 5, increment: 0,
-    note: 'Superset B2' }, 3, 30, ''),
-];
-const THU_LUNCH = [
-  ex('ohp', 'Standing barbell overhead press', { repMin: 6, repMax: 10,
-    note: '1–2 warm-up sets first (don’t log) · 2 min rest · machine press OK' }, 3, 6),
-  ex('leanlat', 'Lean-away single-arm lateral raise', { repMin: 10, repMax: 15,
-    note: 'DB or cable · reps per side, no rest between sides' }, 4, 10),
-  ex('shrug', 'Heavy DB/Smith shrug', { repMin: 10, repMax: 15, increment: 10,
-    note: 'Superset C1 · 2-sec hold at top · 60s rest' }, 3, 10),
-  ex('revpec', 'Reverse pec deck', { repMin: 15, repMax: 20, note: 'Superset C2' }, 3, 15),
-  ex('cablecrunch', 'Kneeling cable crunch', { repMin: 12, repMax: 15 }, 3, 12),
-];
-const WALK = [ex('dogwalk', 'Dog walk', { kind: 'cardio', increment: 0 }, 1, '', 2)];
-const SEED_DAYS = [
-  { id: 'arms', name: 'Arms (Tue)', exercises: ARMS.map(({ last, ...e }) => e) },
-  { id: 'thu-am', name: 'Thu AM · home', exercises: THU_AM },
-  { id: 'thu-lunch', name: 'Thu lunch · office gym', exercises: THU_LUNCH },
-  { id: 'dogwalk', name: 'Dog walk', exercises: WALK },
-];
-const SEED = {
-  version: 2, unit: 'lb', seeded: SEED_DAYS.map(d => d.id),
-  plan: { days: SEED_DAYS },
-  sessions: [{ id: 'seed-arms-1', date: '2026-11-17', dayId: 'arms', dayName: 'Arms (Tue)',
-    notes: 'Triceps ahead of plan, biceps on track (from "working out" project).',
-    exercises: ARMS.map(e => ({ exId: e.id, name: e.name, targets: e.last.map(x => ({ ...x })), sets: e.last })) }],
-  draft: null,
-};
+function seedState() {
+  const st = { version: 2, unit: 'lb', seeded: [], plan: { days: [] }, draft: null,
+    sessions: [{ id: 'seed-arms-1', date: '2026-11-17', dayId: 'arms-tue', dayName: 'Arms (Tue)',
+      notes: 'Triceps ahead of plan, biceps on track (from "working out" project).',
+      exercises: ARMS_1117.map(([name, s]) => { const sets = s.map(([weight, reps]) => ({ weight, reps }));
+        return { exId: slug(name), name, targets: structuredClone(sets), sets }; }) }] };
+  applyProjectPlan(st); delete st.planNotice;
+  return st;
+}
 
 let S = load();
 function load() {
   let v = null;
   try { v = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
-  if (!v || !v.plan) return structuredClone(SEED);
-  // Add days shipped in app updates without touching logged data. Deleted days stay deleted.
+  if (!v || !v.plan) return seedState();
   v.seeded ||= ['arms'];
-  SEED_DAYS.filter(d => !v.seeded.includes(d.id)).forEach(d => {
-    if (!v.plan.days.some(x => x.id === d.id)) v.plan.days.push(structuredClone(d));
-    v.seeded.push(d.id);
-  });
+  applyProjectPlan(v);
   return v;
 }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
@@ -120,10 +121,17 @@ function startDraft(dayId) {
 function renderLog() {
   const v = $('#view');
   if (!S.draft) {
-    v.innerHTML = `<div class="card"><h2>Start a workout</h2>
-      ${S.plan.days.map(d => `<button class="btn" data-day="${d.id}">${esc(d.name)} <span style="opacity:.75">· ${d.exercises.length} exercise${d.exercises.length === 1 ? '' : 's'}</span></button>`).join('')}
+    const dow = new Date().getDay(), todays = S.plan.days.filter(d => daysOf(d).includes(dow) || !daysOf(d).length);
+    const others = S.plan.days.filter(d => !todays.includes(d));
+    const doneToday = new Set(S.sessions.filter(x => x.date === today()).map(x => x.dayId));
+    const btn = (d, ghost) => `<button class="btn${ghost ? ' ghost' : ''}" data-day="${d.id}">${doneToday.has(d.id) ? '✓ ' : ''}${esc(d.name)} <span style="opacity:.75">· ${d.exercises.length} exercise${d.exercises.length === 1 ? '' : 's'}</span></button>`;
+    v.innerHTML = `<div class="card"><h2>Today · ${WEEKDAYS[dow]}</h2>
+      ${todays.map(d => btn(d)).join('') || '<p class="mute">Nothing scheduled today. Rest day.</p>'}
       ${S.plan.days.length ? '' : '<p class="mute">No days in your plan yet. Add one under Plan or import from Sync.</p>'}</div>
+      ${others.length ? `<details class="card"><summary class="mute">Other days (${others.length})</summary>${others.map(d => btn(d, true)).join('')}</details>` : ''}
       ${S.lastResult ? resultCard(S.lastResult) : ''}`;
+    if (S.planNotice) v.insertAdjacentHTML('afterbegin', `<div class="card"><p style="margin:0">${esc(S.planNotice)}</p><button class="btn ghost small" id="okn" style="margin-top:8px">OK</button></div>`);
+    $('#okn')?.addEventListener('click', () => { delete S.planNotice; save(); render(); });
     v.querySelectorAll('[data-day]').forEach(b => b.onclick = () => startDraft(b.dataset.day));
     return;
   }
@@ -157,8 +165,9 @@ function renderLog() {
     if (k === 'lift' && !Number(t.weight) && cur.weight === '') {
       const w = v.querySelector(`[data-e="${ei}"][data-s="${si}"][data-k="weight"]`); w.focus(); w.placeholder = 'enter weight'; return;
     }
-    if (k === 'cardio' && t.reps === '') { const r = v.querySelector(`[data-e="${ei}"][data-s="${si}"][data-k="reps"]`); r.focus(); r.placeholder = 'minutes'; return; }
-    const weight = k === 'bodyweight' || k === 'hold' ? '' : (cur.weight !== '' && !Number(t.weight) ? cur.weight : t.weight);
+    if (k === 'cardio' && !Number(t.reps)) { const r = v.querySelector(`[data-e="${ei}"][data-s="${si}"][data-k="reps"]`); r.focus(); r.placeholder = 'minutes'; return; }
+    const weight = k === 'bodyweight' || k === 'hold' ? '' : k === 'cardio' ? (cur.weight !== '' ? cur.weight : (Number(t.weight) || ''))
+      : (cur.weight !== '' && !Number(t.weight) ? cur.weight : t.weight);
     ex.sets[si] = { weight, reps: t.reps }; save(); render();
   });
   $('#ddate').onchange = e => { d.date = e.target.value; save(); };
@@ -299,21 +308,14 @@ async function shareOrDownload(name, text, type) {
   download(name, text, type);
 }
 
-// Reuse existing exercise ids by name so history keeps linking after an import.
-const matchId = name => S.plan.days.flatMap(d => d.exercises).find(e => e.name.toLowerCase() === String(name).toLowerCase())?.id || uid();
 function importJSON(text) {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
   const raw = fenced ? fenced[1] : text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1);
   const obj = JSON.parse(raw);
   const days = obj.plan?.days || obj.days;
   if (!Array.isArray(days)) throw new Error('Expected {"plan":{"days":[...]}} or {"days":[...]}');
-  days.forEach(d => { d.id ||= uid(); d.exercises = (d.exercises || []).map(e => ({ id: e.id || matchId(e.name), name: e.name, increment: Number(e.increment ?? 5),
-    ...(e.repMax ? { repMin: Number(e.repMin ?? e.repMax), repMax: Number(e.repMax) } : {}),
-    ...(KINDS[e.kind] && e.kind !== 'lift' ? { kind: e.kind } : {}), ...(e.kind === 'hold' ? { repStep: Number(e.repStep ?? 5) } : {}),
-    ...(e.addedLoad ? { addedLoad: true } : {}), ...(e.note ? { note: String(e.note) } : {}),
-    sets: (e.sets || []).map(s => ({ weight: s.weight === '' ? '' : Number(s.weight ?? s.targetWeight ?? 0), reps: s.reps === '' ? '' : Number(s.reps ?? s.targetReps ?? 0) })) })); });
-  if (obj.sessions) { S = { ...structuredClone(SEED), ...obj, plan: { days } }; }
-  else { S.plan.days = days; if (obj.unit) S.unit = obj.unit; }
+  if (obj.sessions) { S = { ...seedState(), ...obj, plan: { days: [] } }; replacePlan(S, days, { keepCustom: false }); }
+  else { replacePlan(S, days); if (obj.unit) S.unit = obj.unit; }
   save();
 }
 

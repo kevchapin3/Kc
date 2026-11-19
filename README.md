@@ -22,7 +22,12 @@ CSV (for Sheets/Excel) and full JSON backup exports are also available. All data
 - **Cardio**: miles and minutes. Logged, never auto-progressed.
 - **Weight 0 = first time**: use set 1 to find your weight, and the app keeps it as the target.
 
-## Starting data
+## Plan from the project
+`app/plan.js` holds the weekly plan from the "working out" project. When its `version` changes, installed apps swap the new plan in on next open. Exercises are matched by name, so history stays linked, and custom days you added are kept.
+
+The Log screen shows **today's** workouts by the weekday in each day's name (e.g. "Thu AM", "Bike (Wed/Sat)"). Days without a weekday show every day.
+
+## Starting data (earlier builds)
 These days come from the "working out" project:
 - **Arms (Tue):** Tuesday 11/17's session is in history, and next Tuesday's targets are in the plan.
 - **Thu AM · home:** vest supersets and core.
