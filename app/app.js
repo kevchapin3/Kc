@@ -200,6 +200,7 @@ function finish() {
   });
   S.lastResult = { date: d.date, day: d.dayName, changes };
   S.draft = null; save(); render();
+  if (gh().token && gh().auto) syncToGitHub().then(ok => toast(ok ? 'Synced to GitHub ✓' : 'GitHub sync failed. See the Sync tab.'));
 }
 
 function resultCard(r) {
@@ -272,8 +273,8 @@ function toCSV() {
   return rows.map(r => r.map(c => /[",\n]/.test(String(c ?? '')) ? `"${String(c).replace(/"/g, '""')}"` : (c ?? '')).join(',')).join('\n');
 }
 
-function toMarkdown() {
-  const recent = S.sessions.slice(-12);
+function toMarkdown(all = false) {
+  const recent = all ? S.sessions.slice().sort((a, b) => a.date.localeCompare(b.date)) : S.sessions.slice(-12);
   return `# Workout log export (${today()})\n\nUnits: ${S.unit}. Per set: weight×reps (target in brackets). +40×6 = 6 reps with 40 ${S.unit} added (vest). ×8 = bodyweight reps. 30s = timed hold. ? = weight not found yet.\n\n## Current plan / next targets\n` +
     S.plan.days.map(d => `\n### ${d.name}\n` + d.exercises.map(e => `- ${e.name} (${range(e)}${e.note ? `; ${e.note}` : ''}): ${e.sets.map(s => fmt(e, s)).join(', ')}`).join('\n')).join('\n') +
     `\n\n## Recent sessions\n` + recent.map(s => `\n### ${s.date} — ${s.dayName}\n` + s.exercises.map(e =>
@@ -319,6 +320,40 @@ function importJSON(text) {
   save();
 }
 
+/* ---------- GitHub sync: lets the "working out" project read your log from the repo ---------- */
+const GH_KEY = 'liftlog.github'; // kept apart from workout data so exports never include the token
+function gh() { try { return Object.assign({ repo: 'kevchapin3/Kc', auto: true }, JSON.parse(localStorage.getItem(GH_KEY)) || {}); } catch (e) { return { repo: 'kevchapin3/Kc', auto: true }; } }
+function setGh(o) { try { localStorage.setItem(GH_KEY, JSON.stringify(Object.assign(gh(), o))); } catch (e) {} }
+const b64 = str => btoa(unescape(encodeURIComponent(str)));
+
+async function putFile(cfg, path, content, message) {
+  const url = `https://api.github.com/repos/${cfg.repo}/contents/${path}`;
+  const headers = { Authorization: `Bearer ${cfg.token}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' };
+  const cur = await fetch(url, { headers, cache: 'no-store' });
+  if (!cur.ok && cur.status !== 404) throw new Error(`read ${path}: ${cur.status}`);
+  const sha = cur.ok ? (await cur.json()).sha : undefined;
+  const res = await fetch(url, { method: 'PUT', headers, body: JSON.stringify({ message, content: b64(content), ...(sha ? { sha } : {}) }) });
+  if (!res.ok) throw new Error(`write ${path}: ${res.status} ${(await res.json().catch(() => ({}))).message || ''}`);
+}
+
+async function syncToGitHub() {
+  const cfg = gh();
+  if (!cfg.token) return false;
+  const { draft, lastResult, planNotice, ...data } = S;
+  const msg = `Workout log: ${S.sessions.length} sessions (${today()})`;
+  try {
+    await putFile(cfg, 'data/workouts.md', toMarkdown(true), msg);
+    await putFile(cfg, 'data/workouts.json', JSON.stringify(data, null, 1) + '\n', msg);
+    setGh({ last: new Date().toLocaleString(), error: '' });
+    return true;
+  } catch (e) { setGh({ error: e.message }); return false; }
+}
+
+function toast(text) {
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = text; document.body.append(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
 function renderData() {
   const v = $('#view'); const stamp = today();
   v.innerHTML = `<div class="card"><h2>Send to “working out” project</h2>
@@ -327,6 +362,14 @@ function renderData() {
     <button class="btn ghost" id="copy">Copy summary to clipboard</button>
     <button class="btn ghost" id="csv">Export CSV (all sets)</button>
     <button class="btn ghost" id="json">Export JSON backup</button></div>
+  <div class="card"><h2>Sync to GitHub</h2>
+    <p class="mute">Saves your full log and current plan to <code>data/</code> in your repo, where the “working out” project reads them. Needs a fine-grained token with <b>Contents: read and write</b> on this repo only. The token stays on this phone.</p>
+    <label class="mute">Repository</label><input id="ghrepo" value="${esc(gh().repo)}">
+    <label class="mute">Token</label><input id="ghtok" type="password" autocomplete="off" placeholder="${gh().token ? '•••••• saved' : 'github_pat_…'}">
+    <label class="row" style="margin-top:8px"><span>Sync after every workout</span><input type="checkbox" id="ghauto" style="flex:0;width:auto"${gh().auto ? ' checked' : ''}></label>
+    <button class="btn" id="ghsync">Save & sync now</button>
+    ${gh().token ? '<button class="btn ghost" id="ghforget">Remove token</button>' : ''}
+    <p id="ghmsg" class="mute">${gh().error ? 'Last sync failed: ' + esc(gh().error) : gh().last ? 'Last synced ' + esc(gh().last) : 'Not set up yet.'}</p></div>
   <div class="card"><h2>Import plan from Claude</h2>
     <p class="mute">Paste Claude's whole reply (the JSON block is found automatically), or JSON like <code>{"days":[{"name":"Arms (Tue)","exercises":[{"name":"EZ curl","increment":5,"repMin":8,"repMax":12,"sets":[{"weight":65,"reps":12}]}]}]}</code>, or a full JSON backup.</p>
     <textarea id="imp" rows="5"></textarea>
@@ -336,6 +379,17 @@ function renderData() {
   $('#copy').onclick = async () => { try { await navigator.clipboard.writeText(toMarkdown()); $('#copy').textContent = 'Copied ✓'; } catch (e) { download(`workouts-${stamp}.md`, toMarkdown(), 'text/markdown'); } };
   $('#csv').onclick = () => shareOrDownload(`workouts-${stamp}.csv`, toCSV(), 'text/csv');
   $('#json').onclick = () => shareOrDownload(`liftlog-backup-${stamp}.json`, JSON.stringify(S, null, 2), 'application/json');
+  $('#ghauto').onchange = e => setGh({ auto: e.target.checked });
+  $('#ghforget')?.addEventListener('click', () => { setGh({ token: '', last: '', error: '' }); renderData(); });
+  $('#ghsync').onclick = async () => {
+    const tok = $('#ghtok').value.trim(), repo = $('#ghrepo').value.trim();
+    if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) { $('#ghmsg').textContent = 'Repository must look like owner/name.'; return; }
+    setGh({ repo, ...(tok ? { token: tok } : {}) });
+    if (!gh().token) { $('#ghmsg').textContent = 'Paste a token first.'; return; }
+    $('#ghmsg').textContent = 'Syncing…';
+    const ok = await syncToGitHub();
+    renderData(); $('#ghmsg').textContent = ok ? `Synced ✓ ${gh().last}` : 'Sync failed: ' + gh().error;
+  };
   $('#file').onchange = async e => { $('#imp').value = await e.target.files[0].text(); };
   $('#doimp').onclick = () => {
     try { importJSON($('#imp').value); $('#msg').textContent = `Imported ${S.plan.days.length} day(s).`; $('#sub').textContent = `${S.sessions.length} sessions logged`; }

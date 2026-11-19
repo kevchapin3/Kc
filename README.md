@@ -36,6 +36,9 @@ These days come from the "working out" project:
 
 Days added in later app updates merge into the data already saved on your phone. Logged sessions are kept, and days you deleted stay deleted. Import the rest of the program with Sync → Import.
 
+## GitHub sync (connects to the "working out" project)
+Sync tab → paste a fine-grained token with **Contents: read and write** on this repo only. After each workout the app writes `data/workouts.md` and `data/workouts.json`, which the project reads (see `PROJECT.md`). The token is stored only on the phone and is never exported.
+
 ## Run / install
 Serve the `app/` folder over HTTPS (e.g. GitHub Pages with source = `/app`, or Netlify/Vercel). Then open it on your phone and choose "Add to Home Screen".
 Locally: `python3 -m http.server -d app 8000`.

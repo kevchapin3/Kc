@@ -21,3 +21,6 @@ td{padding:3px 4px}td input{text-align:center;padding:8px 2px}
 .up{color:var(--up)}.down{color:var(--down)}.mute{color:var(--mute);font-size:14px}
 .row{display:flex;gap:8px;align-items:center}.row>*{flex:1}
 .done td input{border-color:var(--up)}
+.toast{position:fixed;left:16px;right:16px;bottom:84px;background:var(--fg);color:var(--bg);padding:12px 14px;border-radius:10px;text-align:center;z-index:9}
+details.card summary{cursor:pointer;padding:4px 0}
+code{word-break:break-all}
