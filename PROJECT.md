@@ -7,7 +7,7 @@ It's connected to this project through GitHub. Read these files to coach from re
 |---|---|---|
 | `data/workouts.md` | **Start here.** Every logged session (actual vs. target per set), plus the current plan and next targets on the phone. | The app, after each workout (GitHub sync) |
 | `data/workouts.json` | The same data as JSON: `plan.days[]` and `sessions[]`. | The app |
-| `app/plan.js` | The weekly plan shipped with the app. A new `version` replaces the plan on the phone once. | Claude Code (on request) |
+| `app/plan.js` | The weekly plan shipped with the app. A new `version` updates the phone once: only the days listed in `update`, or the whole plan if `update` is absent. | Claude Code (on request) |
 
 Repo content in a project doesn't refresh on its own. Sync the GitHub content in the project before reviewing new workouts.
 

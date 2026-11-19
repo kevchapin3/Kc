@@ -1,6 +1,14 @@
 // Weekly plan from the "working out" Claude project. Ship a new version to update installed apps.
-// Bump "version" whenever this changes; the app swaps the plan in and keeps your history.
+// Bump "version" whenever this changes. "update" lists the days changed in this version: installs that
+// already have an earlier version replace only those days (other days keep the targets the phone progressed).
+// Without "update", the whole plan is swapped in. History is always kept.
 window.PROJECT_PLAN = {
+ "version": "2026-11-20",
+ "update": [
+  "Fri AM · home",
+  "Fri lunch · office gym"
+ ],
+ "source": "working out project",
  "unit": "lb",
  "days": [
   {
@@ -658,7 +666,7 @@ window.PROJECT_PLAN = {
      "increment": 5,
      "repMin": 12,
      "repMax": 15,
-     "note": "Superset A1 · 45s rest · last set drop to 10s to failure",
+     "note": "Check Garmin first: 2+ flags → drop the last set of every exercise · Superset A1 · 45s rest · last set drop to 10s",
      "sets": [
       {
        "weight": 15,
@@ -679,7 +687,7 @@ window.PROJECT_PLAN = {
      "increment": 0,
      "repMin": 12,
      "repMax": 15,
-     "note": "Superset A2 · 55 lb KB (max) · 2-sec hold · reps per side",
+     "note": "Superset A2 · 55 lb KB · 2-sec hold · reps per side",
      "sets": [
       {
        "weight": 55,
@@ -740,7 +748,7 @@ window.PROJECT_PLAN = {
      "increment": 5,
      "repMin": 8,
      "repMax": 12,
-     "note": "75s rest",
+     "note": "Calibration: try ~50–55 lb EZ bar, leave ~2 reps in reserve · 75s rest",
      "sets": [
       {
        "weight": 0,
@@ -761,7 +769,7 @@ window.PROJECT_PLAN = {
      "increment": 5,
      "repMin": 8,
      "repMax": 12,
-     "note": "75s rest",
+     "note": "Calibration: try ~50–60 lb, ~2 in reserve · 75s rest · achy elbows → overhead cable extension instead",
      "sets": [
       {
        "weight": 0,
@@ -782,7 +790,7 @@ window.PROJECT_PLAN = {
      "increment": 5,
      "repMin": 12,
      "repMax": 15,
-     "note": "Superset B1 · 60s rest",
+     "note": "Calibration: pick a load that leaves ~2 in reserve · Superset B1 · 60s rest",
      "sets": [
       {
        "weight": 0,
@@ -803,18 +811,18 @@ window.PROJECT_PLAN = {
      "increment": 5,
      "repMin": 12,
      "repMax": 15,
-     "note": "Superset B2",
+     "note": "Superset B2 · ~40 lb (40×15 on Tue)",
      "sets": [
       {
-       "weight": 0,
+       "weight": 40,
        "reps": 12
       },
       {
-       "weight": 0,
+       "weight": 40,
        "reps": 12
       },
       {
-       "weight": 0,
+       "weight": 40,
        "reps": 12
       }
      ]
@@ -833,7 +841,8 @@ window.PROJECT_PLAN = {
        "weight": 0,
        "reps": 12
       }
-     ]
+     ],
+     "note": "Calibration: try ~40–45 lb, ~2 in reserve"
     },
     {
      "name": "Ab wheel rollout",
@@ -877,7 +886,5 @@ window.PROJECT_PLAN = {
     }
    ]
   }
- ],
- "version": "2026-11-19",
- "source": "working out project"
+ ]
 };

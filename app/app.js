@@ -62,11 +62,23 @@ function replacePlan(state, days, { keepCustom = true } = {}) {
 // Apply the plan shipped in plan.js once per version.
 function applyProjectPlan(state) {
   const P = window.PROJECT_PLAN;
-  if (!P || state.planVersion === P.version) return;
-  replacePlan(state, structuredClone(P.days));
+  if (!P || (state.planVersion && state.planVersion >= P.version)) return;
+  const partial = state.planVersion && Array.isArray(P.update);
+  if (partial) {
+    // Only the days changed in this version; other days keep the targets this phone has progressed.
+    const idFor = knownIds(state);
+    P.update.forEach(name => {
+      const src = P.days.find(d => d.name === name); if (!src) return;
+      const exercises = structuredClone(src.exercises).map(e => normalizeExercise(e, idFor));
+      const i = state.plan.days.findIndex(d => d.name === name);
+      if (i >= 0) state.plan.days[i].exercises = exercises;
+      else { const id = slug(name); state.plan.days.push({ id, name, exercises }); (state.seeded ||= []).push(id); }
+    });
+  } else replacePlan(state, structuredClone(P.days));
   if (P.unit) state.unit = P.unit;
   state.planVersion = P.version;
-  state.planNotice = `Plan updated from the “working out” project (${P.version}). Your logged sessions are unchanged.`;
+  state.planNotice = partial ? `Updated ${P.update.join(' and ')} from the “working out” project. Other days and your logged sessions are unchanged.`
+    : `Plan updated from the “working out” project (${P.version}). Your logged sessions are unchanged.`;
 }
 
 // History shipped with the app: Tuesday 11/17 arm day.
