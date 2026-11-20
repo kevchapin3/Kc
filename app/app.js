@@ -28,6 +28,7 @@ function fmt(ex, x) {
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 // Weekdays a plan day belongs to, from its name ("Thu AM", "Bike (Wed/Sat)"). None = any day.
 const daysOf = d => ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'].flatMap((w, i) => new RegExp(`\\b${w}`, 'i').test(d.name) ? [i] : []);
+const nice = iso => { const d = new Date(iso + 'T12:00:00'); return `${WEEKDAYS[d.getDay()].slice(0, 3)} ${d.getMonth() + 1}/${d.getDate()}`; };
 const slug = t => String(t).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const num0 = (v, d) => v === '' ? '' : Number(v ?? d);
 // Clean one plan exercise (from plan.js or a pasted import). idFor(name) keeps history linked.
@@ -52,7 +53,7 @@ function replacePlan(state, days, { keepCustom = true } = {}) {
   const idFor = knownIds(state);
   const out = days.map(d => {
     const old = state.plan.days.find(x => x.name === d.name);
-    return { id: old ? old.id : (d.id || slug(d.name)), name: String(d.name), exercises: (d.exercises || []).map(e => normalizeExercise(e, idFor)) };
+    return { id: old ? old.id : (d.id || slug(d.name)), name: String(d.name), ...(d.note ? { note: String(d.note) } : {}), exercises: (d.exercises || []).map(e => normalizeExercise(e, idFor)) };
   });
   const names = new Set(out.map(d => d.name)), fromProject = new Set(state.seeded || []);
   const custom = keepCustom ? state.plan.days.filter(d => !names.has(d.name) && !fromProject.has(d.id)) : [];
@@ -63,6 +64,8 @@ function replacePlan(state, days, { keepCustom = true } = {}) {
 function applyProjectPlan(state) {
   const P = window.PROJECT_PLAN;
   if (!P || (state.planVersion && state.planVersion >= P.version)) return;
+  if (P.effective && today() < P.effective && state.plan.days.length) { state.pendingPlan = P.effective; return; }
+  delete state.pendingPlan;
   const partial = state.planVersion && Array.isArray(P.update);
   if (partial) {
     // Only the days changed in this version; other days keep the targets this phone has progressed.
@@ -71,12 +74,13 @@ function applyProjectPlan(state) {
       const src = P.days.find(d => d.name === name); if (!src) return;
       const exercises = structuredClone(src.exercises).map(e => normalizeExercise(e, idFor));
       const i = state.plan.days.findIndex(d => d.name === name);
-      if (i >= 0) state.plan.days[i].exercises = exercises;
+      if (i >= 0) { state.plan.days[i].exercises = exercises; if (src.note) state.plan.days[i].note = src.note; else delete state.plan.days[i].note; }
       else { const id = slug(name); state.plan.days.push({ id, name, exercises }); (state.seeded ||= []).push(id); }
     });
   } else replacePlan(state, structuredClone(P.days));
   if (P.unit) state.unit = P.unit;
   state.planVersion = P.version;
+  if (P.weekNote) state.weekNote = P.weekNote; else delete state.weekNote;
   state.planNotice = partial ? `Updated ${P.update.join(' and ')} from the “working out” project. Other days and your logged sessions are unchanged.`
     : `Plan updated from the “working out” project (${P.version}). Your logged sessions are unchanged.`;
 }
@@ -123,7 +127,7 @@ function render() {
 /* ---------- Log ---------- */
 function startDraft(dayId) {
   const day = S.plan.days.find(d => d.id === dayId);
-  S.draft = { id: uid(), date: today(), dayId, dayName: day.name, notes: '',
+  S.draft = { id: uid(), date: today(), dayId, dayName: day.name, dayNote: day.note || '', notes: '',
     exercises: day.exercises.map(ex => ({ exId: ex.id, name: ex.name, range: range(ex), note: ex.note || '',
       kind: kindOf(ex), addedLoad: !!ex.addedLoad,
       targets: ex.sets.map(s => ({ ...s })), sets: ex.sets.map(() => ({ weight: '', reps: '' })) })) };
@@ -136,8 +140,8 @@ function renderLog() {
     const dow = new Date().getDay(), todays = S.plan.days.filter(d => daysOf(d).includes(dow) || !daysOf(d).length);
     const others = S.plan.days.filter(d => !todays.includes(d));
     const doneToday = new Set(S.sessions.filter(x => x.date === today()).map(x => x.dayId));
-    const btn = (d, ghost) => `<button class="btn${ghost ? ' ghost' : ''}" data-day="${d.id}">${doneToday.has(d.id) ? '✓ ' : ''}${esc(d.name)} <span style="opacity:.75">· ${d.exercises.length} exercise${d.exercises.length === 1 ? '' : 's'}</span></button>`;
-    v.innerHTML = `<div class="card"><h2>Today · ${WEEKDAYS[dow]}</h2>
+    const btn = (d, ghost) => `<button class="btn${ghost ? ' ghost' : ''}" data-day="${d.id}">${doneToday.has(d.id) ? '✓ ' : ''}${esc(d.name)} <span style="opacity:.75">· ${d.exercises.length} exercise${d.exercises.length === 1 ? '' : 's'}</span></button>${!ghost && d.note ? `<p class="mute" style="margin:4px 2px 0">${esc(d.note)}</p>` : ''}`;
+    v.innerHTML = `${S.weekNote ? `<div class="card note">${esc(S.weekNote)}</div>` : ''}${S.pendingPlan ? `<p class="mute" style="margin:8px 2px">Next week’s plan is ready and loads on ${esc(nice(S.pendingPlan))}.</p>` : ''}<div class="card"><h2>Today · ${WEEKDAYS[dow]}</h2>
       ${todays.map(d => btn(d)).join('') || '<p class="mute">Nothing scheduled today. Rest day.</p>'}
       ${S.plan.days.length ? '' : '<p class="mute">No days in your plan yet. Add one under Plan or import from Sync.</p>'}</div>
       ${others.length ? `<details class="card"><summary class="mute">Other days (${others.length})</summary>${others.map(d => btn(d, true)).join('')}</details>` : ''}
@@ -148,7 +152,7 @@ function renderLog() {
     return;
   }
   const d = S.draft;
-  v.innerHTML = `<div class="card row"><div><h2 style="margin:0">${esc(d.dayName)}</h2></div>
+  v.innerHTML = `${d.dayNote ? `<div class="card note">${esc(d.dayNote)}</div>` : ''}<div class="card row"><div><h2 style="margin:0">${esc(d.dayName)}</h2></div>
       <input type="date" id="ddate" value="${d.date}" style="max-width:160px"></div>
     ${d.exercises.map((ex, ei) => { const k = ex.kind || 'lift', hasW = k === 'lift' || k === 'cardio';
       const wLabel = k === 'cardio' ? 'Miles' : (ex.addedLoad ? '+' : '') + S.unit, rLabel = k === 'cardio' ? 'Min' : k === 'hold' ? 'Sec' : 'Reps';
@@ -332,6 +336,7 @@ function importJSON(text) {
   if (!Array.isArray(days)) throw new Error('Expected {"plan":{"days":[...]}} or {"days":[...]}');
   if (obj.sessions) { S = { ...seedState(), ...obj, plan: { days: [] } }; replacePlan(S, days, { keepCustom: false }); }
   else { replacePlan(S, days); if (obj.unit) S.unit = obj.unit; }
+  if (obj.weekNote) S.weekNote = String(obj.weekNote);
   save();
 }
 

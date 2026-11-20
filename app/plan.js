@@ -1,14 +1,13 @@
 // Weekly plan from the "working out" Claude project. Ship a new version to update installed apps.
-// Bump "version" whenever this changes. "update" lists the days changed in this version: installs that
-// already have an earlier version replace only those days (other days keep the targets the phone progressed).
-// Without "update", the whole plan is swapped in. History is always kept.
+// "version": bump on every change. "effective": the app waits until this date (YYYY-MM-DD) to load it.
+// "update": optional list of changed days; installs on an earlier version replace only those days.
+// Without "update", the whole plan is swapped in (a new week). History is always kept (matched by exercise name).
 window.PROJECT_PLAN = {
- "version": "2026-11-20",
- "update": [
-  "Fri AM · home",
-  "Fri lunch · office gym"
- ],
+ "version": "2026-11-23",
+ "effective": "2026-11-22",
+ "week": "2026-11-23 to 2026-11-29",
  "source": "working out project",
+ "weekNote": "Week of 11/23 · Check Garmin each morning: 1 flag → match last week's reps on the heavy compound lifts; 2+ flags → drop the last set of every exercise. Sunday 11/29 is off.",
  "unit": "lb",
  "days": [
   {
@@ -72,7 +71,7 @@ window.PROJECT_PLAN = {
      "increment": 5,
      "repMin": 10,
      "repMax": 15,
-     "note": "Superset B1 · DB between feet · 3-sec lowering · 60s rest",
+     "note": "Superset B1 · 5 lb DB between feet · 3-sec lowering · 60s rest",
      "sets": [
       {
        "weight": 5,
@@ -114,6 +113,7 @@ window.PROJECT_PLAN = {
   },
   {
    "name": "Mon lunch · office gym",
+   "note": "Evening Pilates is fine.",
    "exercises": [
     {
      "name": "Seated DB shoulder press",
@@ -141,7 +141,7 @@ window.PROJECT_PLAN = {
      "increment": 5,
      "repMin": 12,
      "repMax": 15,
-     "note": "Superset C1 · reps per side · cable behind body · 60s rest",
+     "note": "Superset C1 · reps per side · 60s rest · finish with a 5 lb drop set to failure",
      "sets": [
       {
        "weight": 10,
@@ -298,7 +298,7 @@ window.PROJECT_PLAN = {
    ]
   },
   {
-   "name": "Arms (Tue)",
+   "name": "Tue lunch · office gym (arms)",
    "exercises": [
     {
      "name": "Close-grip bench",
@@ -393,7 +393,7 @@ window.PROJECT_PLAN = {
      "increment": 5,
      "repMin": 12,
      "repMax": 15,
-     "note": "Finisher C1 · no rest into pushdown",
+     "note": "Finisher C1 · 2 rounds · straight into pushdown",
      "sets": [
       {
        "weight": 40,
@@ -401,7 +401,7 @@ window.PROJECT_PLAN = {
       },
       {
        "weight": 40,
-       "reps": 12
+       "reps": 10
       }
      ]
     },
@@ -425,7 +425,7 @@ window.PROJECT_PLAN = {
    ]
   },
   {
-   "name": "Bike (Wed/Sat)",
+   "name": "Wed · bike + core",
    "exercises": [
     {
      "name": "Bike",
@@ -433,11 +433,47 @@ window.PROJECT_PLAN = {
      "increment": 0,
      "repMin": 40,
      "repMax": 40,
-     "note": "Zone 2 · weight = miles",
+     "note": "Easy: 80–90 W, HR under ~119 · pair the HR strap · miles optional",
      "sets": [
       {
        "weight": 0,
        "reps": 40
+      }
+     ]
+    },
+    {
+     "name": "Hanging oblique knee raise",
+     "kind": "bodyweight",
+     "increment": 0,
+     "repMin": 8,
+     "repMax": 10,
+     "note": "Optional core · reps per side",
+     "sets": [
+      {
+       "weight": 0,
+       "reps": 10
+      },
+      {
+       "weight": 0,
+       "reps": 10
+      }
+     ]
+    },
+    {
+     "name": "Side plank",
+     "kind": "hold",
+     "increment": 0,
+     "repMin": 30,
+     "repMax": 45,
+     "note": "Optional core · seconds per side",
+     "sets": [
+      {
+       "weight": 0,
+       "reps": 30
+      },
+      {
+       "weight": 0,
+       "reps": 30
       }
      ]
     }
@@ -445,6 +481,7 @@ window.PROJECT_PLAN = {
   },
   {
    "name": "Thu AM · home",
+   "note": "Thanksgiving.",
    "exercises": [
     {
      "name": "Weighted chin-up (palms toward you)",
@@ -546,6 +583,7 @@ window.PROJECT_PLAN = {
   },
   {
    "name": "Thu lunch · office gym",
+   "note": "Thanksgiving: if the office gym is closed, do this at the country club or right after the AM session.",
    "exercises": [
     {
      "name": "Standing barbell overhead press",
@@ -666,18 +704,18 @@ window.PROJECT_PLAN = {
      "increment": 5,
      "repMin": 12,
      "repMax": 15,
-     "note": "Check Garmin first: 2+ flags → drop the last set of every exercise · Superset A1 · 45s rest · last set drop to 10s",
+     "note": "Superset A1 · 45s rest · last set drop to 15s to failure",
      "sets": [
       {
-       "weight": 15,
+       "weight": 20,
        "reps": 12
       },
       {
-       "weight": 15,
+       "weight": 20,
        "reps": 12
       },
       {
-       "weight": 15,
+       "weight": 20,
        "reps": 12
       }
      ]
@@ -687,19 +725,19 @@ window.PROJECT_PLAN = {
      "increment": 0,
      "repMin": 12,
      "repMax": 15,
-     "note": "Superset A2 · 55 lb KB · 2-sec hold · reps per side",
+     "note": "Superset A2 · 55 lb KB (max) · 2-sec hold · reps per side",
      "sets": [
       {
        "weight": 55,
-       "reps": 12
+       "reps": 15
       },
       {
        "weight": 55,
-       "reps": 12
+       "reps": 15
       },
       {
        "weight": 55,
-       "reps": 12
+       "reps": 13
       }
      ]
     },
@@ -718,23 +756,23 @@ window.PROJECT_PLAN = {
     },
     {
      "name": "Slow hanging leg raise",
-     "kind": "bodyweight",
-     "increment": 0,
+     "addedLoad": true,
+     "increment": 5,
      "repMin": 10,
      "repMax": 15,
-     "note": "3-sec lowering",
+     "note": "5 lb DB between feet · 3-sec lowering",
      "sets": [
       {
-       "weight": 0,
-       "reps": 15
+       "weight": 5,
+       "reps": 12
       },
       {
-       "weight": 0,
-       "reps": 15
+       "weight": 5,
+       "reps": 12
       },
       {
-       "weight": 0,
-       "reps": 15
+       "weight": 5,
+       "reps": 12
       }
      ]
     }
@@ -742,25 +780,26 @@ window.PROJECT_PLAN = {
   },
   {
    "name": "Fri lunch · office gym",
+   "note": "Thanksgiving: if the office gym is closed, do this at the country club or right after the AM session.",
    "exercises": [
     {
      "name": "Preacher curl",
      "increment": 5,
      "repMin": 8,
      "repMax": 12,
-     "note": "Calibration: try ~50–55 lb EZ bar, leave ~2 reps in reserve · 75s rest",
+     "note": "75s rest",
      "sets": [
       {
-       "weight": 0,
-       "reps": 8
+       "weight": 25,
+       "reps": 12
       },
       {
-       "weight": 0,
-       "reps": 8
+       "weight": 25,
+       "reps": 12
       },
       {
-       "weight": 0,
-       "reps": 8
+       "weight": 25,
+       "reps": 9
       }
      ]
     },
@@ -769,19 +808,19 @@ window.PROJECT_PLAN = {
      "increment": 5,
      "repMin": 8,
      "repMax": 12,
-     "note": "Calibration: try ~50–60 lb, ~2 in reserve · 75s rest · achy elbows → overhead cable extension instead",
+     "note": "75s rest · achy elbows → overhead cable extension instead",
      "sets": [
       {
-       "weight": 0,
-       "reps": 8
+       "weight": 55,
+       "reps": 11
       },
       {
-       "weight": 0,
-       "reps": 8
+       "weight": 55,
+       "reps": 9
       },
       {
-       "weight": 0,
-       "reps": 8
+       "weight": 55,
+       "reps": 9
       }
      ]
     },
@@ -790,18 +829,18 @@ window.PROJECT_PLAN = {
      "increment": 5,
      "repMin": 12,
      "repMax": 15,
-     "note": "Calibration: pick a load that leaves ~2 in reserve · Superset B1 · 60s rest",
+     "note": "Superset B1 · 60s rest",
      "sets": [
       {
-       "weight": 0,
+       "weight": 40,
+       "reps": 13
+      },
+      {
+       "weight": 40,
        "reps": 12
       },
       {
-       "weight": 0,
-       "reps": 12
-      },
-      {
-       "weight": 0,
+       "weight": 40,
        "reps": 12
       }
      ]
@@ -811,19 +850,19 @@ window.PROJECT_PLAN = {
      "increment": 5,
      "repMin": 12,
      "repMax": 15,
-     "note": "Superset B2 · ~40 lb (40×15 on Tue)",
+     "note": "Superset B2",
      "sets": [
       {
-       "weight": 40,
+       "weight": 45,
+       "reps": 13
+      },
+      {
+       "weight": 45,
        "reps": 12
       },
       {
-       "weight": 40,
-       "reps": 12
-      },
-      {
-       "weight": 40,
-       "reps": 12
+       "weight": 45,
+       "reps": 11
       }
      ]
     },
@@ -834,15 +873,14 @@ window.PROJECT_PLAN = {
      "repMax": 15,
      "sets": [
       {
-       "weight": 0,
-       "reps": 12
+       "weight": 40,
+       "reps": 13
       },
       {
-       "weight": 0,
-       "reps": 12
+       "weight": 40,
+       "reps": 11
       }
-     ],
-     "note": "Calibration: try ~40–45 lb, ~2 in reserve"
+     ]
     },
     {
      "name": "Ab wheel rollout",
@@ -853,15 +891,34 @@ window.PROJECT_PLAN = {
      "sets": [
       {
        "weight": 0,
-       "reps": 8
+       "reps": 9
       },
       {
        "weight": 0,
-       "reps": 8
+       "reps": 9
       },
       {
        "weight": 0,
-       "reps": 8
+       "reps": 9
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "name": "Sat · bike",
+   "exercises": [
+    {
+     "name": "Bike",
+     "kind": "cardio",
+     "increment": 0,
+     "repMin": 40,
+     "repMax": 40,
+     "note": "No Garmin flags → add 3–4 × 1 min hard (~200 W), full recovery between",
+     "sets": [
+      {
+       "weight": 0,
+       "reps": 40
       }
      ]
     }
@@ -876,7 +933,7 @@ window.PROJECT_PLAN = {
      "increment": 0,
      "repMin": 30,
      "repMax": 30,
-     "note": "Daily · weight = miles, reps = minutes",
+     "note": "Daily · miles / minutes",
      "sets": [
       {
        "weight": 2,
